@@ -1,6 +1,8 @@
 *.DS_Store
 */.idea/*
-Spark_TP2/target/*
-Spark_TP2/project/target/*
-Spark_TP2/project/project/*
-Spark_TP2/spark-warehouse/*
+*/target/*
+*/project/target/*
+*/project/project/*
+*/spark-warehouse/*
+*/derby.log
+*/metastore_db/*
