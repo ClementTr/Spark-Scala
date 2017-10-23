@@ -59,11 +59,13 @@ object Trainer {
       .setOutputCol("tokens")
     val df_tokenized = tokenizer.transform(df_cleaned)
 
+
     // 2
     val stopworder = new StopWordsRemover()
       .setInputCol("tokens")
       .setOutputCol("without_stopwords")
     val df_without_stopwords = stopworder.transform(df_tokenized)
+
 
     // 3
     val vectorizer = new CountVectorizer()
@@ -81,7 +83,7 @@ object Trainer {
     val idfModel = idf.fit(df_vectorized)
     val df_tfidf = idfModel.transform(df_vectorized)
 
-    df_tfidf.select("text", "tfidf").show(5)
+    df_tfidf.select("text", "without_stopwords", "tfidf").show(5)
 
 
     /** VECTOR ASSEMBLER **/
