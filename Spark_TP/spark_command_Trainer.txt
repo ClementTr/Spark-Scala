@@ -1,0 +1,39 @@
+import org.apache.spark.SparkConf
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.classification.LogisticRegression
+import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
+import org.apache.spark.ml.feature.{CountVectorizer, IDF, RegexTokenizer, StopWordsRemover}
+import org.apache.spark.ml.feature.VectorAssembler
+
+val df_cleaned = spark.read.load("data/train_cleaned/*.parquet")
+
+val tokenizer = new RegexTokenizer().setPattern("\\W+").setGaps(true).setInputCol("text").setOutputCol("tokens")
+val df_tokenized = tokenizer.transform(df_cleaned)
+
+val stopworder = new StopWordsRemover().setInputCol("tokens").setOutputCol("without_stopwords")
+val df_without_stopwords = stopworder.transform(df_tokenized)
+
+val vectorizer = new CountVectorizer().setInputCol("without_stopwords").setOutputCol("vectorize")
+val df_vectorized = vectorizer.fit(df_without_stopwords).transform(df_without_stopwords)
+
+val idf = new IDF().setInputCol("vectorize").setOutputCol("tfidf")
+val df_tfidf = idf.fit(df_vectorized).transform(df_vectorized)
+
+val indexer_country = new StringIndexer().setInputCol("country2").setOutputCol("country_indexed")
+val df_country_indexed = indexer_country.fit(df_tfidf).transform(df_tfidf)
+
+val indexer_currency = new StringIndexer().setInputCol("currency2").setOutputCol("currency_indexed")
+val df_country_currency_indexed = indexer_currency.fit(df_country_indexed).transform(df_country_indexed)
+
+val assembler = new VectorAssembler().setInputCols(Array("tfidf", "days_campaign", "hours_prepa", "goal","country_indexed", "currency_indexed")).setOutputCol("features")
+val df_assembled = assembler.transform(df_country_currency_indexed)
+
+val lr = new LogisticRegression().setElasticNetParam(0.0).setFitIntercept(true).setFeaturesCol("features").setLabelCol("final_status").setStandardization(true).setPredictionCol("predictions").setRawPredictionCol("raw_predictions").setThresholds(Array(0.7, 0.3)).setTol(1.0e-6).setMaxIter(300)
+
+val pipeline = new Pipeline().setStages(Array(tokenizer,stopworder,vectorizer,idf,indexer_country,indexer_currency,assembler,lr))
+
+val Array(training, test) = df_assembled.randomSplit(Array(0.9, 0.1))
+

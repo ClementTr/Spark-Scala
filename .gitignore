@@ -6,3 +6,4 @@
 */spark-warehouse/*
 */derby.log
 */metastore_db/*
+Spark_TP/myModelPath/*
