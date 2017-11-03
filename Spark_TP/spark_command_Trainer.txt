@@ -35,5 +35,15 @@ val lr = new LogisticRegression().setElasticNetParam(0.0).setFitIntercept(true).
 
 val pipeline = new Pipeline().setStages(Array(tokenizer,stopworder,vectorizer,idf,indexer_country,indexer_currency,assembler,lr))
 
-val Array(training, test) = df_assembled.randomSplit(Array(0.9, 0.1))
+val df_init = df_cleaned.withColumn("final_status", 'final_status.cast("Double"))
+val Array(training, test) = df_init.select("text", "goal", "country2", "currency2", "deadline2", "launched_at2", "days_campaign", "created_at2", "hours_prepa", "final_status").randomSplit(Array(0.9, 0.1))
+
+val paramGrid = new ParamGridBuilder().addGrid(lr.regParam, Array(scala.math.pow(10,-8),scala.math.pow(10,-6),scala.math.pow(10,-4),scala.math.pow(10,-2))).addGrid(vectorizer.minDF, Array(55.0, 75.0, 85.0, 95.0)).build()
+
+
+val eval = new MulticlassClassificationEvaluator().setLabelCol("final_status").setPredictionCol("predictions").setMetricName("f1")
+
+val trainValidationSplit = new TrainValidationSplit().setEstimator(pipeline).setEvaluator(eval).setEstimatorParamMaps(paramGrid).setTrainRatio(0.7)
+
+val model = trainValidationSplit.fit(training)
 

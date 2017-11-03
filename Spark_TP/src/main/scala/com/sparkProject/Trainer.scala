@@ -200,7 +200,7 @@ object Trainer {
     // 13
     df_WithPredictions.groupBy("final_status","predictions").count.show()
 
-
+    // 14
     model.save("myModelPath")
   }
 }
