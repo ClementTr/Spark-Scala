@@ -9,6 +9,7 @@ import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.spark.ml.tuning.{ParamGridBuilder, TrainValidationSplit}
 import org.apache.spark.ml.feature.{CountVectorizer, IDF, RegexTokenizer, StopWordsRemover}
 import org.apache.spark.ml.feature.VectorAssembler
+import org.apache.spark.sql.functions.explode
 
 
 object Trainer {
@@ -82,16 +83,32 @@ object Trainer {
     val df_tokenized = tokenizer.transform(df_cleaned)
 
 
-    /** Stopwords **/
-      /*
-      * Une fois qu'on a autre segmentation on peut enlever les stopwords.
-      * Ce sont les mots qui ne vont pas approter d'information concrète.
-      * "the", "in", etc.
-      */
-    val stopworder = new StopWordsRemover()
+    /** Stopwords + Hapax **/
+    /*
+    * Hapax, partie personelle. Ce sont les mots qui n'apparaissent qu'une seule
+    * fois dans l'ensemble des données. On les supprime comme les stopwords car ils
+    * n'ont pas d'impact sur le score.
+    */
+    val df_hapax = df_tokenized
+      .select(explode($"tokens").as("value"))
+      .groupBy("value")
+      .count
+      .filter($"count" <= 1)
+    val hapax_any = df_hapax
+      .select("value")
+      .rdd.map(r => r(0))
+      .collect()
+    val hapax_string : Array[String] =
+      (hapax_any map (_.toString)).toArray
+    val stopwords = StopWordsRemover.
+      loadDefaultStopWords("english")
+    val hapax_stopwords = hapax_string ++ stopwords
+
+    val hapax_remover = new StopWordsRemover()
+      .setStopWords(hapax_string)
       .setInputCol("tokens")
-      .setOutputCol("without_stopwords")
-    val df_without_stopwords = stopworder.transform(df_tokenized)
+      .setOutputCol("without_stop_hapax")
+    val df_without_hapax = hapax_remover.transform(df_tokenized)
 
 
     /** CountVectorizer **/
@@ -100,11 +117,11 @@ object Trainer {
       * en données numériques. Plus facile pour l'apprentissage.
       */
     val vectorizer = new CountVectorizer()
-      .setInputCol("without_stopwords")
+      .setInputCol("without_stop_hapax")
       .setOutputCol("vectorize")
     val df_vectorized = vectorizer
-      .fit(df_without_stopwords)
-      .transform(df_without_stopwords)
+      .fit(df_without_hapax)
+      .transform(df_without_hapax)
     df_vectorized.show(5)
 
 
@@ -119,7 +136,7 @@ object Trainer {
     val df_tfidf = idf
       .fit(df_vectorized)
       .transform(df_vectorized)
-    df_tfidf.select("text", "without_stopwords", "tfidf").show(5)
+    df_tfidf.select("text", "without_stop_hapax", "tfidf").show(5)
 
 
     /** StringIndexer **/
@@ -187,7 +204,7 @@ object Trainer {
     val pipeline = new Pipeline()
       .setStages(Array(
         tokenizer,
-        stopworder,
+        hapax_remover,
         vectorizer,
         idf,
         indexer_country,
@@ -204,6 +221,7 @@ object Trainer {
       */
     val df_init = df_cleaned
       .withColumn("final_status", 'final_status.cast("Double"))
+    print("lol10")
     val Array(training, test) = df_init
       .select("text", "goal", "country2", "currency2",
         "deadline2", "launched_at2", "days_campaign",
@@ -262,6 +280,14 @@ object Trainer {
     print("My score: ", score)
     df_WithPredictions.groupBy("final_status","predictions").count.show()
 
+
+    /** SAUVEGARDE DU MODELE **/
+    /*
+    * Ajout de overwrite pour pouvoir écraser notre modèle s'il est déjà existant
+    */
     model.write.overwrite().save("myModelPath")
+    print("Saved !")
+
+    /** FIN **/
   }
 }
