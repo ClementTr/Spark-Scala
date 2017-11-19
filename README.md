@@ -11,7 +11,7 @@ In this repository there is pdf files showing how to setup your spark environmen
 <b>TP1</b> is based on data cleaning<br>
 <b>TP3</b> is the last TP where some learning machine algorithms are implemented with Spark/Scala<br>
 <br>
-Please note that a build_and_submit.sh program has been done in order to facilitate the way to output our code. Once your path_to_spark will will be adapted to your computer in this file, please just run:
+Please note that a build_and_submit.sh program has been done in order to facilitate the way to output our code. Once your path_to_spark will be adapted to your computer in this file (mine is '/usr/local/spark' and alllows me to run 'spark-shell' from everywhere in my computer), please just run:
 ```
 ./build_and_submit.sh Preprocessor
 ```
