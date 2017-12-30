@@ -1,6 +1,6 @@
 ## Spark-Scala
 
-Spark-Scala: Telecom ParisTech - Specialized Master in Big Data/Data Science
+Spark-Scala: Telecom ParisTech - Advanced Master in Big Data/Data Science
 <br>
 
 ### How does it work ?
